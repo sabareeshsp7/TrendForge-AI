@@ -5,7 +5,7 @@ import {
   Sparkles, User, Target, Clock, Loader2, CheckCircle,
   BookOpen, Play, FileText, TrendingUp, Zap, Award, Brain,
   MessageSquare, ArrowRight, ShieldAlert, Users, Layers,
-  Settings, Database, Calendar, ChevronRight, RefreshCw, BarChart2, Check, Lock, AlertCircle
+  Settings, Database, Calendar, ChevronRight, RefreshCw, BarChart2, Check, AlertCircle, Info
 } from "lucide-react";
 import {
   SYNTHETIC_WORK_SIGNALS,
@@ -58,6 +58,47 @@ const AGENT_META: Record<string, { color: string; icon: React.ReactNode }> = {
   "Manager Insights Agent": { color: "#10b981", icon: <Users size={14} /> }
 };
 
+// 15-Certification Career Advancement Maps (Fabric IQ Ontology Rules)
+const CERT_ADVANCEMENT_MAP: Record<string, { nextCertId: string; nextCertTitle: string; reason: string }> = {
+  "AZ-900": { nextCertId: "AZ-104", nextCertTitle: "Azure Administrator Associate", reason: "Foundational cloud concepts mastered. Transitioning to core administrative and resource management skills." },
+  "AI-900": { nextCertId: "AI-102", nextCertTitle: "Azure AI Engineer Associate", reason: "Cognitive principles validated. Transitioning to production AI integrations and search engines." },
+  "DP-900": { nextCertId: "DP-203", nextCertTitle: "Azure Data Engineer Associate", reason: "Data storage fundamentals mastered. Moving to big data pipelines and Synapse processing clusters." },
+  "MS-900": { nextCertId: "AZ-900", nextCertTitle: "Azure Fundamentals", reason: "SaaS licensing and core services understood. Expanding to primary cloud infrastructure concepts." },
+  "AZ-204": { nextCertId: "AZ-400", nextCertTitle: "Azure DevOps Engineer Expert", reason: "Development skills validated. Transitioning to CI/CD pipelines, container topologies, and release automation." },
+  "AZ-104": { nextCertId: "AZ-305", nextCertTitle: "Azure Solutions Architect Expert", reason: "Administration requirements completed. Advancing to cloud governance, disaster recovery, and architecture design." },
+  "DP-203": { nextCertId: "DP-100", nextCertTitle: "Azure Data Scientist Associate", reason: "Big data storage models structured. Ready for training machine learning pipelines and hyperparameter tuning." },
+  "AI-102": { nextCertId: "DP-100", nextCertTitle: "Azure Data Scientist Associate", reason: "AI API and search features integrated. Advancing to custom model training and lifecycle controls." },
+  "DP-100": { nextCertId: "AZ-305", nextCertTitle: "Azure Solutions Architect Expert", reason: "Data science model lifecycles managed. Extending capability to general enterprise architectural layout." },
+  "AZ-500": { nextCertId: "SC-200", nextCertTitle: "Security Operations Analyst", reason: "Infrastructure security secured. Moving to active threat monitoring, incident routing, and Sentinel KQL tracking." },
+  "SC-200": { nextCertId: "AZ-500", nextCertTitle: "Azure Security Engineer Associate", reason: "Incident tracking logs mastered. Expanding to network security group design and Key Vault security controls." },
+  "PL-300": { nextCertId: "DP-203", nextCertTitle: "Azure Data Engineer Associate", reason: "Dashboard analysis mastered. Expanding capability to backend data pipe engineering and lakehouse design." },
+  "DP-300": { nextCertId: "DP-203", nextCertTitle: "Azure Data Engineer Associate", reason: "Database clustering and query optimization secured. Transitioning to big data formats and pipelines." },
+  "AZ-305": { nextCertId: "AZ-400", nextCertTitle: "Azure DevOps Engineer Expert", reason: "Architectural rules mastered. Integrating GitOps automation and deployment state safety." },
+  "AZ-400": { nextCertId: "AZ-500", nextCertTitle: "Azure Security Engineer Associate", reason: "Release structures automated. Progressing to integrate DevSecOps compliance scanning pipelines." }
+};
+
+interface MeetingTooltipDetails {
+  title: string;
+  organizer: string;
+  invitees: string[];
+  description: string;
+}
+
+const MEETING_DETAILS: Record<string, MeetingTooltipDetails> = {
+  "Sync Standup": {
+    title: "Daily Agile Sync Standup",
+    organizer: "Engineering Lead",
+    invitees: ["Alex Rivera", "Sarah Chen", "Marcus Johnson", "David Kim"],
+    description: "Daily synchronization on blocker tickets and pipeline release tasks."
+  },
+  "Design Review": {
+    title: "System Architecture Design Review",
+    organizer: "Principal Architect",
+    invitees: ["Elena Rostova", "Keith Vance", "Alex Rivera", "Sophia Martinez"],
+    description: "Review of database schemas, partition key selections, and network security parameters."
+  }
+};
+
 export default function AgentsPage() {
   const [selectedEmpId, setSelectedEmpId] = useState("EMP-001");
   const [selectedCertId, setSelectedCertId] = useState("AZ-204");
@@ -70,8 +111,11 @@ export default function AgentsPage() {
   const [activeAgentNode, setActiveAgentNode] = useState<string | null>(null);
   const [visibleChatLogs, setVisibleChatLogs] = useState<{ agent: string; message: string }[]>([]);
   const [orchestratorStep, setOrchestratorStep] = useState<"idle" | "chatting" | "done">("idle");
-  const [calendarSynced, setCalendarSynced] = useState(false);
   const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+
+  // Interactive blocked slots (Outlook integration)
+  const [blockedSlots, setBlockedSlots] = useState<string[]>([]);
 
   // Quiz interactive states
   const [quizAnswers, setQuizAnswers] = useState<Record<string, number>>({});
@@ -91,12 +135,30 @@ export default function AgentsPage() {
   useEffect(() => {
     const emp = SYNTHETIC_WORK_SIGNALS.find(e => e.employee_id === selectedEmpId);
     if (emp) {
-      if (emp.role === "Cloud Engineer") setSelectedCertId("AZ-204");
-      else if (emp.role === "DevOps Engineer") setSelectedCertId("AZ-400");
-      else if (emp.role === "Data Engineer") setSelectedCertId("DP-203");
-      else if (emp.role === "Solutions Architect") setSelectedCertId("AZ-305");
+      const match = SYNTHETIC_SEMANTIC_MODEL.certifications.find(c => c.roleAlignment === emp.role);
+      if (match) {
+        setSelectedCertId(match.id);
+      }
     }
   }, [selectedEmpId]);
+
+  // Set default calendar blocked slots when a plan is loaded
+  useEffect(() => {
+    if (result && empContext) {
+      // Prepopulate calendar slots matching preferred slot
+      const slots = [];
+      const days = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+      
+      if (empContext.preferred_learning_slot === "Morning") {
+        days.forEach(d => slots.push(`${d}-09`));
+      } else if (empContext.preferred_learning_slot === "Afternoon") {
+        days.forEach(d => slots.push(`${d}-13`));
+      } else if (empContext.preferred_learning_slot === "Friday Focus Window") {
+        slots.push("Fri-13");
+      }
+      setBlockedSlots(slots);
+    }
+  }, [result]);
 
   const runOrchestration = async () => {
     setLoading(true);
@@ -104,7 +166,7 @@ export default function AgentsPage() {
     setQuizAnswers({});
     setQuizSubmitted(false);
     setQuizScore(0);
-    setCalendarSynced(false);
+    setBlockedSlots([]);
     setVisibleChatLogs([]);
     setOrchestratorStep("chatting");
 
@@ -127,7 +189,7 @@ export default function AgentsPage() {
         const log = data.agentChatLog[i];
         setActiveAgentNode(log.agent);
         setVisibleChatLogs(prev => [...prev, log]);
-        await new Promise(r => setTimeout(r, 2000)); // 2s pause per agent step
+        await new Promise(r => setTimeout(r, 1800)); // 1.8s pause per agent step
       }
 
       setResult(data);
@@ -162,7 +224,6 @@ export default function AgentsPage() {
     const candidateName = SYNTHETIC_WORK_SIGNALS.find(e => e.employee_id === selectedEmpId)?.name || "New Candidate";
     const passed = finalScore >= 75;
     
-    // Check if employee already exists in list to avoid duplicates
     const listContains = managerMetrics.performanceList.some(p => p.name === candidateName);
     let newList = [...managerMetrics.performanceList];
     
@@ -202,12 +263,14 @@ export default function AgentsPage() {
     }));
   };
 
-  // Outlook block focus handler
-  const blockOutlookSlots = () => {
-    setCalendarSynced(true);
-    setTimeout(() => {
-      setShowCalendarModal(true);
-    }, 400);
+  const toggleCalendarSlot = (slotKey: string) => {
+    setBlockedSlots(prev => {
+      if (prev.includes(slotKey)) {
+        return prev.filter(k => k !== slotKey);
+      } else {
+        return [...prev, slotKey];
+      }
+    });
   };
 
   // Recharts configurations
@@ -224,14 +287,11 @@ export default function AgentsPage() {
 
   const empContext = SYNTHETIC_WORK_SIGNALS.find(e => e.employee_id === selectedEmpId);
   const certContext = SYNTHETIC_SEMANTIC_MODEL.certifications.find(c => c.id === selectedCertId);
+  const advancementContext = CERT_ADVANCEMENT_MAP[selectedCertId];
 
   return (
     <div style={{ minHeight: "100vh", background: "#0B1020", color: "#f1f5f9" }}>
       
-      {/* Visual background elements */}
-      <div style={{ position: "absolute", top: 100, left: "10%", width: "600px", height: "600px", background: "radial-gradient(circle, rgba(6,182,212,0.04) 0%, rgba(0,0,0,0) 70%)", pointerEvents: "none", zIndex: 0 }} />
-      <div style={{ position: "absolute", top: 300, right: "5%", width: "500px", height: "500px", background: "radial-gradient(circle, rgba(139,92,246,0.03) 0%, rgba(0,0,0,0) 70%)", pointerEvents: "none", zIndex: 0 }} />
-
       {/* Title Header */}
       <div style={{ background: "rgba(17, 24, 39, 0.7)", borderBottom: "1px solid rgba(99, 179, 237, 0.1)", padding: "28px 24px", position: "relative", zIndex: 10 }}>
         <div style={{ maxWidth: 1280, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
@@ -241,7 +301,7 @@ export default function AgentsPage() {
               🧠 Reasoning Agents <span className="gradient-text">Enterprise Workspace</span>
             </h1>
             <p style={{ fontSize: 14, color: "#64748b", marginTop: 4 }}>
-              State-of-the-art interactive workspace demonstrating real-time agent grounding and reasoning orchestration.
+              Interactive workspace demonstrating real-time agent grounding, dynamic questions, and interactive calendar synchronization.
             </p>
           </div>
           <div style={{ display: "flex", gap: 12 }}>
@@ -386,7 +446,7 @@ export default function AgentsPage() {
             {/* Simulation Canvas */}
             <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
               
-              {/* Node Graph Visualization */}
+              {/* Node Graph Topology */}
               <div className="glass-card" style={{ padding: 24, background: "rgba(11,16,32,0.4)" }}>
                 <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 18 }}>Agent Coordination topology</h3>
                 
@@ -536,9 +596,9 @@ export default function AgentsPage() {
                         <span style={{ fontSize: 10, fontWeight: 700, color: "#eab308", textTransform: "uppercase" }}>Work IQ Action required</span>
                         <h3 style={{ fontSize: 16, fontWeight: 700, marginTop: 4 }}>📅 Outlook Calendar Protection Loop</h3>
                       </div>
-                      {calendarSynced ? (
+                      {blockedSlots.length > 0 ? (
                         <span style={{ background: "rgba(16,185,129,0.1)", color: "#10b981", border: "1px solid rgba(16,185,129,0.2)", borderRadius: 99, padding: "2px 10px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
-                          <Check size={12} /> Protected
+                          <Check size={12} /> {blockedSlots.length} Slots Protected
                         </span>
                       ) : (
                         <span style={{ background: "rgba(234,179,8,0.1)", color: "#eab308", border: "1px solid rgba(234,179,8,0.2)", borderRadius: 99, padding: "2px 10px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}>
@@ -547,17 +607,12 @@ export default function AgentsPage() {
                       )}
                     </div>
                     <p style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.6, marginBottom: 18 }}>
-                      To protect study windows from meeting encroachments, programmatically block the calculated **{result.planner.schedule[0].hours} hours/week** in your Outlook Calendar during preferred **{empContext?.preferred_learning_slot}** slots.
+                      To protect study windows from meeting encroachments, programmatically block the calculated **{result.planner.schedule[0].hours} hours/week** in your Outlook Calendar. You can customize the blocks inside the calendar grid.
                     </p>
                     <div style={{ display: "flex", gap: 10 }}>
-                      <button onClick={blockOutlookSlots} className="btn-primary" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <Calendar size={14} /> Block Focus Windows in Outlook
+                      <button onClick={() => setShowCalendarModal(true)} className="btn-primary" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <Calendar size={14} /> Open Interactive Calendar Manager
                       </button>
-                      {calendarSynced && (
-                        <button onClick={() => setShowCalendarModal(true)} className="btn-ghost" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          View Blocked Calendar
-                        </button>
-                      )}
                     </div>
                   </div>
 
@@ -566,7 +621,7 @@ export default function AgentsPage() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", marginBottom: 18 }}>
                       <div>
                         <span style={{ fontSize: 10, fontWeight: 700, color: "#a855f7", textTransform: "uppercase" }}>Assessment Agent</span>
-                        <h3 style={{ fontSize: 18, fontWeight: 700, marginTop: 4 }}>🧠 Grounded Practice Assessment</h3>
+                        <h3 style={{ fontSize: 18, fontWeight: 700, marginTop: 4 }}>🧠 Grounded Practice Assessment ({selectedCertId})</h3>
                       </div>
                       <span style={{ background: "rgba(168,85,247,0.1)", color: "#a855f7", border: "1px solid rgba(168,85,247,0.2)", borderRadius: 99, padding: "4px 12px", fontSize: 11, fontWeight: 700 }}>
                         Pass criteria: {certContext?.pass_threshold_percent}%
@@ -644,29 +699,31 @@ export default function AgentsPage() {
                       </button>
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                        <div style={{ padding: 18, background: quizScore >= 75 ? "rgba(16,185,129,0.04)" : "rgba(244,63,94,0.04)", border: `1px solid ${quizScore >= 75 ? "rgba(16,185,129,0.15)" : "rgba(244,63,94,0.15)"}`, borderRadius: 10, textAlign: "center" }}>
-                          <h4 style={{ fontSize: 17, fontWeight: 700, color: quizScore >= 75 ? "#10b981" : "#f43f5e" }}>
-                            Practice Outcome: {quizScore}% {quizScore >= 75 ? "Pass" : "Fail"}
+                        <div style={{ padding: 18, background: quizScore >= (certContext?.pass_threshold_percent || 75) ? "rgba(16,185,129,0.04)" : "rgba(244,63,94,0.04)", border: `1px solid ${quizScore >= (certContext?.pass_threshold_percent || 75) ? "rgba(16,185,129,0.15)" : "rgba(244,63,94,0.15)"}`, borderRadius: 10, textAlign: "center" }}>
+                          <h4 style={{ fontSize: 17, fontWeight: 700, color: quizScore >= (certContext?.pass_threshold_percent || 75) ? "#10b981" : "#f43f5e" }}>
+                            Practice Outcome: {quizScore}% {quizScore >= (certContext?.pass_threshold_percent || 75) ? "Pass" : "Fail"}
                           </h4>
                           <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 6 }}>
-                            {quizScore >= 75
+                            {quizScore >= (certContext?.pass_threshold_percent || 75)
                               ? "Excellent! Candidate satisfied the readiness pass rate criteria."
-                              : "Readiness score threshold not achieved. Re-evaluation loops triggered."}
+                              : `Readiness score threshold of ${certContext?.pass_threshold_percent}% not achieved. Re-evaluation loops triggered.`}
                           </p>
                         </div>
 
                         {/* Dynamic Certification Advancement Paths */}
-                        {quizScore >= 75 && certContext && (
+                        {quizScore >= (certContext?.pass_threshold_percent || 75) && advancementContext && (
                           <div className="glass-card" style={{ padding: 18, border: "1px solid rgba(168,85,247,0.2)", background: "rgba(168,85,247,0.02)" }}>
                             <h4 style={{ fontSize: 14, fontWeight: 700, color: "#a855f7", display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                              <Award size={16} /> Recommended Next Step
+                              <Award size={16} /> Fabric IQ Career Advancement Track
                             </h4>
                             <p style={{ fontSize: 13, color: "#94a3b8", lineHeight: 1.6 }}>
                               Since **{empContext?.name}** passed the **{selectedCertId}** practice assessment, the semantic rules suggest advancing to:
                               <strong style={{ color: "#a855f7", display: "block", marginTop: 6 }}>
-                                🚀 AZ-305 (Microsoft Certified: Azure Solutions Architect Expert)
+                                🚀 {advancementContext.nextCertId}: {advancementContext.nextCertTitle}
                               </strong>
-                              Prerequisites verified. Next learning block scheduled.
+                              <span style={{ fontSize: 12, color: "#64748b", display: "block", marginTop: 4 }}>
+                                <strong>Rationale:</strong> {advancementContext.reason}
+                              </span>
                             </p>
                           </div>
                         )}
@@ -718,7 +775,7 @@ export default function AgentsPage() {
               </div>
             </div>
 
-            {/* Visual Graphs */}
+            {/* Graphs Display Section */}
             <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 28 }}>
               
               {/* Bar Chart */}
@@ -778,6 +835,49 @@ export default function AgentsPage() {
               </div>
             </div>
 
+            {/* Advanced Manager Audit Panel */}
+            <div className="glass-card" style={{ padding: 24 }}>
+              <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+                <Users size={16} color="#06b6d4" /> Team Certification Audit Registry
+              </h3>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12, textAlign: "left" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", color: "#64748b" }}>
+                      <th style={{ padding: "10px 14px" }}>Learner</th>
+                      <th style={{ padding: "10px 14px" }}>Role</th>
+                      <th style={{ padding: "10px 14px" }}>Track</th>
+                      <th style={{ padding: "10px 14px" }}>Avg Score</th>
+                      <th style={{ padding: "10px 14px" }}>Study Time</th>
+                      <th style={{ padding: "10px 14px" }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {managerMetrics.performanceList.map((perf, idx) => (
+                      <tr key={idx} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                        <td style={{ padding: "12px 14px", fontWeight: 600, color: "#f1f5f9" }}>{perf.name}</td>
+                        <td style={{ padding: "12px 14px", color: "#94a3b8" }}>{perf.role}</td>
+                        <td style={{ padding: "12px 14px", color: "#06b6d4" }}>{perf.certification}</td>
+                        <td style={{ padding: "12px 14px", fontWeight: 700, color: perf.practice_score_avg >= 75 ? "#10b981" : "#f43f5e" }}>
+                          {perf.practice_score_avg}%
+                        </td>
+                        <td style={{ padding: "12px 14px", color: "#94a3b8" }}>{perf.hours_studied} hrs</td>
+                        <td style={{ padding: "12px 14px" }}>
+                          <span style={{
+                            padding: "2px 8px", borderRadius: 99, fontSize: 10, fontWeight: 700,
+                            background: perf.exam_outcome === "Pass" ? "rgba(16,185,129,0.1)" : "rgba(244,63,94,0.1)",
+                            color: perf.exam_outcome === "Pass" ? "#10b981" : "#f43f5e"
+                          }}>
+                            {perf.exam_outcome === "Pass" ? "Ready" : "Under review"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             {/* Performance Insights */}
             <div className="glass-card" style={{ padding: 24 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
@@ -826,20 +926,22 @@ export default function AgentsPage() {
 
       </div>
 
-      {/* ── OUTLOOK CALENDAR MODAL ── */}
+      {/* ── INTERACTIVE OUTLOOK CALENDAR MODAL ── */}
       {showCalendarModal && empContext && (
         <div style={{
           position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
           background: "rgba(0,0,0,0.7)", zIndex: 1000, display: "flex",
           alignItems: "center", justifyContent: "center"
         }} className="fade-in">
-          <div className="glass-card" style={{ width: 680, padding: 26, background: "#0f172a", border: "1px solid rgba(99,179,237,0.2)" }}>
+          <div className="glass-card" style={{ width: 720, padding: 26, background: "#0f172a", border: "1px solid rgba(99,179,237,0.2)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
               <div>
                 <h3 style={{ fontSize: 17, fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
-                  <Calendar size={18} color="#06b6d4" /> Outlook Calendar Block (Work IQ Protected)
+                  <Calendar size={18} color="#06b6d4" /> Interactive Outlook Calendar (Click Slots to Protect)
                 </h3>
-                <p style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>Learner: {empContext.name} · Target: {selectedCertId}</p>
+                <p style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                  Selected Learner: **{empContext.name}** ({empContext.role}) · Current Targets: **{selectedCertId}**
+                </p>
               </div>
               <button
                 onClick={() => setShowCalendarModal(false)}
@@ -850,7 +952,7 @@ export default function AgentsPage() {
             </div>
 
             {/* Outlook Weekly Layout Mockup */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 1, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, overflow: "hidden" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 1, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, overflow: "hidden", position: "relative" }}>
               
               {/* Header Days */}
               <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 1fr 1fr 1fr 1fr", background: "rgba(255,255,255,0.02)", textAlign: "center", fontSize: 11, fontWeight: 700, paddingTop: 8, paddingBottom: 8 }}>
@@ -863,148 +965,140 @@ export default function AgentsPage() {
               </div>
 
               {/* Slots Row 1: Morning (9 AM - 12 PM) */}
-              <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 1fr 1fr 1fr 1fr", height: 75, fontSize: 10, color: "#64748b" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 1fr 1fr 1fr 1fr", height: 80, fontSize: 10, color: "#64748b" }}>
                 <div style={{ borderRight: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.01)" }}>
                   09:00 AM
                 </div>
                 
-                {/* Mon */}
-                <div style={{ borderRight: "1px solid rgba(255,255,255,0.04)", padding: 4 }}>
-                  {empContext.preferred_learning_slot === "Morning" ? (
-                    <div style={{ height: "100%", background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", borderRadius: 4, padding: 4, color: "#06b6d4", fontWeight: 700, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                      <span>📚 {selectedCertId} Study</span>
-                      <span style={{ fontSize: 8, fontWeight: 400 }}>Protected Block</span>
+                {/* Render Days */}
+                {["Mon", "Tue", "Wed", "Thu", "Fri"].map((day) => {
+                  const key = `${day}-09`;
+                  const isBlocked = blockedSlots.includes(key);
+                  return (
+                    <div
+                      key={day}
+                      onClick={() => toggleCalendarSlot(key)}
+                      style={{ borderRight: "1px solid rgba(255,255,255,0.04)", padding: 4, cursor: "pointer", position: "relative" }}
+                    >
+                      {isBlocked ? (
+                        <div style={{ height: "100%", background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", borderRadius: 4, padding: 4, color: "#06b6d4", fontWeight: 700, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                          <span>📚 {selectedCertId} Study</span>
+                          <span style={{ fontSize: 8, fontWeight: 400 }}>Protected Block</span>
+                        </div>
+                      ) : (
+                        <div style={{ height: "100%", opacity: 0.15, display: "flex", alignItems: "center", justifyContent: "center" }}>+ Block</div>
+                      )}
                     </div>
-                  ) : (
-                    <div style={{ height: "100%", opacity: 0.3, display: "flex", alignItems: "center", justifyContent: "center" }}>Open slot</div>
-                  )}
-                </div>
-
-                {/* Tue */}
-                <div style={{ borderRight: "1px solid rgba(255,255,255,0.04)", padding: 4 }}>
-                  {empContext.preferred_learning_slot === "Morning" ? (
-                    <div style={{ height: "100%", background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", borderRadius: 4, padding: 4, color: "#06b6d4", fontWeight: 700, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                      <span>📚 {selectedCertId} Study</span>
-                      <span style={{ fontSize: 8, fontWeight: 400 }}>Protected Block</span>
-                    </div>
-                  ) : (
-                    <div style={{ background: "rgba(255,255,255,0.02)", height: "100%", border: "1px solid rgba(255,255,255,0.04)", padding: 4, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                      <span>Sync Standup</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Wed */}
-                <div style={{ borderRight: "1px solid rgba(255,255,255,0.04)", padding: 4 }}>
-                  {empContext.preferred_learning_slot === "Morning" ? (
-                    <div style={{ height: "100%", background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", borderRadius: 4, padding: 4, color: "#06b6d4", fontWeight: 700, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                      <span>📚 {selectedCertId} Study</span>
-                      <span style={{ fontSize: 8, fontWeight: 400 }}>Protected Block</span>
-                    </div>
-                  ) : (
-                    <div style={{ height: "100%", opacity: 0.3, display: "flex", alignItems: "center", justifyContent: "center" }}>Open slot</div>
-                  )}
-                </div>
-
-                {/* Thu */}
-                <div style={{ borderRight: "1px solid rgba(255,255,255,0.04)", padding: 4 }}>
-                  {empContext.preferred_learning_slot === "Morning" ? (
-                    <div style={{ height: "100%", background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", borderRadius: 4, padding: 4, color: "#06b6d4", fontWeight: 700, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                      <span>📚 {selectedCertId} Study</span>
-                      <span style={{ fontSize: 8, fontWeight: 400 }}>Protected Block</span>
-                    </div>
-                  ) : (
-                    <div style={{ height: "100%", opacity: 0.3, display: "flex", alignItems: "center", justifyContent: "center" }}>Open slot</div>
-                  )}
-                </div>
-
-                {/* Fri */}
-                <div style={{ padding: 4 }}>
-                  {empContext.preferred_learning_slot === "Morning" ? (
-                    <div style={{ height: "100%", background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", borderRadius: 4, padding: 4, color: "#06b6d4", fontWeight: 700, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                      <span>📚 {selectedCertId} Study</span>
-                      <span style={{ fontSize: 8, fontWeight: 400 }}>Protected Block</span>
-                    </div>
-                  ) : (
-                    <div style={{ height: "100%", opacity: 0.3, display: "flex", alignItems: "center", justifyContent: "center" }}>Open slot</div>
-                  )}
-                </div>
+                  );
+                })}
               </div>
 
               {/* Slots Row 2: Afternoon (1 PM - 4 PM) */}
-              <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 1fr 1fr 1fr 1fr", height: 75, fontSize: 10, color: "#64748b", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "80px 1fr 1fr 1fr 1fr 1fr", height: 80, fontSize: 10, color: "#64748b", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
                 <div style={{ borderRight: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.01)" }}>
                   01:00 PM
                 </div>
                 
                 {/* Mon */}
-                <div style={{ borderRight: "1px solid rgba(255,255,255,0.04)", padding: 4 }}>
-                  {empContext.preferred_learning_slot === "Afternoon" ? (
+                <div
+                  onClick={() => toggleCalendarSlot("Mon-13")}
+                  style={{ borderRight: "1px solid rgba(255,255,255,0.04)", padding: 4, cursor: "pointer" }}
+                >
+                  {blockedSlots.includes("Mon-13") ? (
                     <div style={{ height: "100%", background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", borderRadius: 4, padding: 4, color: "#06b6d4", fontWeight: 700, display: "flex", flexDirection: "column", justifyContent: "center" }}>
                       <span>📚 {selectedCertId} Study</span>
                       <span style={{ fontSize: 8, fontWeight: 400 }}>Protected Block</span>
                     </div>
                   ) : (
-                    <div style={{ height: "100%", opacity: 0.3, display: "flex", alignItems: "center", justifyContent: "center" }}>Open slot</div>
+                    <div style={{ height: "100%", opacity: 0.15, display: "flex", alignItems: "center", justifyContent: "center" }}>+ Block</div>
                   )}
                 </div>
 
-                {/* Tue */}
-                <div style={{ borderRight: "1px solid rgba(255,255,255,0.04)", padding: 4 }}>
-                  {empContext.preferred_learning_slot === "Afternoon" ? (
-                    <div style={{ height: "100%", background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", borderRadius: 4, padding: 4, color: "#06b6d4", fontWeight: 700, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                      <span>📚 {selectedCertId} Study</span>
-                      <span style={{ fontSize: 8, fontWeight: 400 }}>Protected Block</span>
-                    </div>
-                  ) : (
-                    <div style={{ height: "100%", opacity: 0.3, display: "flex", alignItems: "center", justifyContent: "center" }}>Open slot</div>
-                  )}
+                {/* Tue (Meetings) */}
+                <div
+                  onMouseEnter={() => setActiveTooltip("Sync Standup")}
+                  onMouseLeave={() => setActiveTooltip(null)}
+                  style={{ borderRight: "1px solid rgba(255,255,255,0.04)", padding: 4, position: "relative" }}
+                >
+                  <div style={{ background: "rgba(244,63,94,0.12)", border: "1px solid rgba(244,63,94,0.3)", height: "100%", borderRadius: 4, padding: 4, color: "#f43f5e", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                    <span>👥 Standup Sync</span>
+                    <span style={{ fontSize: 8, opacity: 0.7 }}>Meeting blocker</span>
+                  </div>
                 </div>
 
                 {/* Wed */}
-                <div style={{ borderRight: "1px solid rgba(255,255,255,0.04)", padding: 4 }}>
-                  {empContext.preferred_learning_slot === "Afternoon" ? (
+                <div
+                  onClick={() => toggleCalendarSlot("Wed-13")}
+                  style={{ borderRight: "1px solid rgba(255,255,255,0.04)", padding: 4, cursor: "pointer" }}
+                >
+                  {blockedSlots.includes("Wed-13") ? (
                     <div style={{ height: "100%", background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", borderRadius: 4, padding: 4, color: "#06b6d4", fontWeight: 700, display: "flex", flexDirection: "column", justifyContent: "center" }}>
                       <span>📚 {selectedCertId} Study</span>
                       <span style={{ fontSize: 8, fontWeight: 400 }}>Protected Block</span>
                     </div>
                   ) : (
-                    <div style={{ background: "rgba(255,255,255,0.02)", height: "100%", border: "1px solid rgba(255,255,255,0.04)", padding: 4, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                      <span>Design Review</span>
-                    </div>
+                    <div style={{ height: "100%", opacity: 0.15, display: "flex", alignItems: "center", justifyContent: "center" }}>+ Block</div>
                   )}
                 </div>
 
-                {/* Thu */}
-                <div style={{ borderRight: "1px solid rgba(255,255,255,0.04)", padding: 4 }}>
-                  {empContext.preferred_learning_slot === "Afternoon" ? (
-                    <div style={{ height: "100%", background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", borderRadius: 4, padding: 4, color: "#06b6d4", fontWeight: 700, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                      <span>📚 {selectedCertId} Study</span>
-                      <span style={{ fontSize: 8, fontWeight: 400 }}>Protected Block</span>
-                    </div>
-                  ) : (
-                    <div style={{ height: "100%", opacity: 0.3, display: "flex", alignItems: "center", justifyContent: "center" }}>Open slot</div>
-                  )}
+                {/* Thu (Meetings) */}
+                <div
+                  onMouseEnter={() => setActiveTooltip("Design Review")}
+                  onMouseLeave={() => setActiveTooltip(null)}
+                  style={{ borderRight: "1px solid rgba(255,255,255,0.04)", padding: 4, position: "relative" }}
+                >
+                  <div style={{ background: "rgba(244,63,94,0.12)", border: "1px solid rgba(244,63,94,0.3)", height: "100%", borderRadius: 4, padding: 4, color: "#f43f5e", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                    <span>👥 Design Review</span>
+                    <span style={{ fontSize: 8, opacity: 0.7 }}>Architecture</span>
+                  </div>
                 </div>
 
                 {/* Fri */}
-                <div style={{ padding: 4 }}>
-                  {empContext.preferred_learning_slot === "Afternoon" || empContext.preferred_learning_slot === "Friday Focus Window" ? (
+                <div
+                  onClick={() => toggleCalendarSlot("Fri-13")}
+                  style={{ padding: 4, cursor: "pointer" }}
+                >
+                  {blockedSlots.includes("Fri-13") ? (
                     <div style={{ height: "100%", background: "rgba(6,182,212,0.12)", border: "1px solid rgba(6,182,212,0.3)", borderRadius: 4, padding: 4, color: "#06b6d4", fontWeight: 700, display: "flex", flexDirection: "column", justifyContent: "center" }}>
                       <span>📚 {selectedCertId} Study</span>
                       <span style={{ fontSize: 8, fontWeight: 400 }}>Protected Block</span>
                     </div>
                   ) : (
-                    <div style={{ height: "100%", opacity: 0.3, display: "flex", alignItems: "center", justifyContent: "center" }}>Open slot</div>
+                    <div style={{ height: "100%", opacity: 0.15, display: "flex", alignItems: "center", justifyContent: "center" }}>+ Block</div>
                   )}
                 </div>
               </div>
 
+              {/* Hover Tooltip display */}
+              {activeTooltip && MEETING_DETAILS[activeTooltip] && (
+                <div style={{
+                  position: "absolute", bottom: 10, left: "20%", background: "#0B1020",
+                  border: "1px solid rgba(244,63,94,0.3)", borderRadius: 8, padding: 12,
+                  width: 320, zIndex: 1100, boxShadow: "0 4px 24px rgba(0,0,0,0.5)"
+                }} className="fade-in">
+                  <h4 style={{ fontSize: 12, fontWeight: 700, color: "#f43f5e", display: "flex", alignItems: "center", gap: 6 }}>
+                    <Info size={12} /> {MEETING_DETAILS[activeTooltip].title}
+                  </h4>
+                  <p style={{ fontSize: 10, color: "#64748b", marginTop: 4 }}>
+                    <strong>Organizer:</strong> {MEETING_DETAILS[activeTooltip].organizer}
+                  </p>
+                  <p style={{ fontSize: 10, color: "#94a3b8", marginTop: 4, lineHeight: 1.4 }}>
+                    <strong>Description:</strong> {MEETING_DETAILS[activeTooltip].description}
+                  </p>
+                  <p style={{ fontSize: 9, color: "#475569", marginTop: 4 }}>
+                    <strong>Invitees:</strong> {MEETING_DETAILS[activeTooltip].invitees.join(", ")}
+                  </p>
+                </div>
+              )}
+
             </div>
 
-            <div style={{ marginTop: 20, textAlign: "right" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 22 }}>
+              <span style={{ fontSize: 12, color: "#94a3b8" }}>
+                Active blocks: <strong style={{ color: "#06b6d4" }}>{blockedSlots.length} sessions</strong> (~{blockedSlots.length * 2} hours/week)
+              </span>
               <button onClick={() => setShowCalendarModal(false)} className="btn-primary" style={{ padding: "8px 18px" }}>
-                Done
+                Confirm Synchronization
               </button>
             </div>
           </div>

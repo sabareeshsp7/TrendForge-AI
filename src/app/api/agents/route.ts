@@ -282,11 +282,11 @@ function getLocalSimulation(employee: WorkActivitySignal, certification: Semanti
     },
     {
       agent: "Planner Agent",
-      message: `Thanks Curator. Checking Alex's Work IQ metrics: meeting load is ${employee.meeting_hours_per_week}h/week, focus hours are ${employee.focus_hours_per_week}h/week. Recommended certification study time is ${certification.recommended_hours} hours. ${hasHighMeetings ? "Because meeting density is high, I am stretching the schedule to avoid calendar fragmentation." : "Since meetings are moderate, we can schedule an efficient timeline."} Let's structure a ${totalWeeks}-week program.`
+      message: `Thanks Curator. Checking ${employee.name}'s Work IQ metrics: meeting load is ${employee.meeting_hours_per_week}h/week, focus hours are ${employee.focus_hours_per_week}h/week. Recommended certification study time is ${certification.recommended_hours} hours. ${hasHighMeetings ? "Because meeting density is high, I am stretching the schedule to avoid calendar fragmentation." : "Since meetings are moderate, we can schedule an efficient timeline."} Let's structure a ${totalWeeks}-week program.`
     },
     {
       agent: "Engagement Agent",
-      message: `Reviewing plan. Since Alex Rivera's preferred learning window is '${employee.preferred_learning_slot}', I will schedule active reminders at the beginning of these slots and hook them to Teams. I'll also trigger Outlook calendar blocks to protect focus windows.`
+      message: `Reviewing plan. Since ${employee.name}'s preferred learning window is '${employee.preferred_learning_slot}', I will schedule active reminders at the beginning of these slots and hook them to Teams. I'll also trigger Outlook calendar blocks to protect focus windows.`
     },
     {
       agent: "Assessment Agent",
@@ -294,7 +294,7 @@ function getLocalSimulation(employee: WorkActivitySignal, certification: Semanti
     },
     {
       agent: "Manager Insights Agent",
-      message: `Analyzing risk metrics. Candidates with high meeting loads have a 40% higher dropout rate. However, with the protected morning block rules established by Engagement, Alex's completion probability is estimated at ${completionLikelihood}%. Overall team risk parameter set to ${teamRisk}.`
+      message: `Analyzing risk metrics. Candidates with high meeting loads have a 40% higher dropout rate. However, with the protected morning block rules established by Engagement, ${employee.name}'s completion probability is estimated at ${completionLikelihood}%. Overall team risk parameter set to ${teamRisk}.`
     }
   ];
 
