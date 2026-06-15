@@ -31,6 +31,12 @@ Your job is to simulate a collaborative session among 5 specialized AI agents re
 Always respond with valid JSON matching the exact schema provided. Do not output markdown, notes, or extra characters. Pure JSON only.`;
 
 const RESPONSE_SCHEMA = `{
+  "agentChatLog": [
+    {
+      "agent": "Name of the Agent (e.g., Curator Agent, Planner Agent)",
+      "message": "Dialogue expressing reasoning, references, and collaboration details"
+    }
+  ],
   "curator": {
     "reasoning": "Detailed reasoning explaining how certification targets map to the role",
     "skills": ["array of skills/tools to focus on"],
@@ -89,7 +95,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request JSON" }, { status: 400 });
   }
 
-  // 1. Gather employee and certification contexts
+  // Gather employee and certification contexts
   const employee = SYNTHETIC_WORK_SIGNALS.find(s => s.employee_id === employeeId) || SYNTHETIC_WORK_SIGNALS[0];
   const certification = SYNTHETIC_SEMANTIC_MODEL.certifications.find(c => c.id === certificationId) || SYNTHETIC_SEMANTIC_MODEL.certifications[0];
 
@@ -130,7 +136,9 @@ Fabric IQ Semantic Model rules:
 Grounded Questions Database (select 2-3 relevant questions matching this certification ID):
 ${JSON.stringify(SYNTHETIC_GROUNDED_QUESTIONS.filter(q => q.certification === certification.id), null, 2)}
 
-Please execute the reasoning loop for the 5 agents sequentially, incorporate the custom note "${customNotes}" in your planner agent, and return the response in this exact JSON schema:
+Please execute the reasoning loop for the 5 agents sequentially.
+Have each agent add a chat entry in the "agentChatLog" array showing their conversation/debate about how they adjusted Alex's plan to fit meetings and focus times.
+Return the response in this exact JSON schema:
 ${RESPONSE_SCHEMA}
 `;
 
@@ -146,7 +154,7 @@ ${RESPONSE_SCHEMA}
           { role: "user", content: userPrompt },
         ],
         temperature: 0.2,
-        max_tokens: 3000,
+        max_tokens: 3500,
       }),
     });
 
@@ -222,7 +230,6 @@ function getLocalSimulation(employee: WorkActivitySignal, certification: Semanti
   // Filter grounded questions for assessment
   let questions = SYNTHETIC_GROUNDED_QUESTIONS.filter(q => q.certification === certification.id);
   if (questions.length === 0) {
-    // Return generic fallback questions for other certifications
     questions = [
       {
         id: `Q-${certification.id}-01`,
@@ -267,7 +274,32 @@ function getLocalSimulation(employee: WorkActivitySignal, certification: Semanti
     teamRisk = "Low";
   }
 
+  // Construct dialogue log
+  const agentChatLog = [
+    {
+      agent: "Curator Agent",
+      message: `Analyzing profile for ${employee.name}. Role: ${employee.role}. Grounded in CERT-GD-2026, the primary target is ${certification.title} (${certification.id}). The key learning blocks are: ${certification.skills.slice(0, 3).join(", ")}. Checking with Planner on workload pacing.`
+    },
+    {
+      agent: "Planner Agent",
+      message: `Thanks Curator. Checking Alex's Work IQ metrics: meeting load is ${employee.meeting_hours_per_week}h/week, focus hours are ${employee.focus_hours_per_week}h/week. Recommended certification study time is ${certification.recommended_hours} hours. ${hasHighMeetings ? "Because meeting density is high, I am stretching the schedule to avoid calendar fragmentation." : "Since meetings are moderate, we can schedule an efficient timeline."} Let's structure a ${totalWeeks}-week program.`
+    },
+    {
+      agent: "Engagement Agent",
+      message: `Reviewing plan. Since Alex Rivera's preferred learning window is '${employee.preferred_learning_slot}', I will schedule active reminders at the beginning of these slots and hook them to Teams. I'll also trigger Outlook calendar blocks to protect focus windows.`
+    },
+    {
+      agent: "Assessment Agent",
+      message: `Assessment targets prepared. Fabric IQ rules require a ${certification.pass_threshold_percent}% passing threshold to verify readiness. Grounding questions retrieved for ${certification.id} with source citations from approved material.`
+    },
+    {
+      agent: "Manager Insights Agent",
+      message: `Analyzing risk metrics. Candidates with high meeting loads have a 40% higher dropout rate. However, with the protected morning block rules established by Engagement, Alex's completion probability is estimated at ${completionLikelihood}%. Overall team risk parameter set to ${teamRisk}.`
+    }
+  ];
+
   return {
+    agentChatLog,
     curator: {
       reasoning: `Curator mapped ${employee.name}'s role (${employee.role}) to the recommended certification ${certification.title} (${certification.id}). Grounded in the Engineering Certification Enablement Guide.`,
       skills: certification.skills,
