@@ -128,18 +128,6 @@ graph TD
 
 ---
 
-## 🏆 Agents League Contest Submission
-
-This repository contains our official entry for the **Microsoft Agents League Contest @ AI Skills Fest 2026** under the **Reasoning Agents Track**.
-
-- **📁 Submission Track**: Reasoning Agents (Microsoft Foundry & Microsoft IQ)
-- **🎥 Demo Video Link**: *[Add your YouTube or Vimeo link here!]*
-- **💻 GitHub Repository**: [sabareeshsp7/TrendForge-AI](https://github.com/sabareeshsp7/TrendForge-AI)
-- **👥 Team Members**:
-  - Name: *[Add name]* (Microsoft Learn: *[Add username]*)
-
----
-
 ## 📁 15-Certification Catalog Configuration (Fabric IQ)
 
 The semantic engine supports the complete hierarchy of 15 Microsoft certifications. Passing a path dynamically recommends the next advanced expert certification:
