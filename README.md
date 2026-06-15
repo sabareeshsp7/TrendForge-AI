@@ -46,6 +46,100 @@ Built to satisfy the Microsoft Foundry challenge requirements, this module provi
 
 ---
 
+## 🏗️ Architecture Overview
+
+The TrendForge AI platform is built around a multi-tier integration of the **Microsoft IQ** intelligence layers, Microsoft AI Foundry, Microsoft 365 Copilot, and GitHub Copilot, ensuring that learning paths are grounded in corporate documents, aligned with business metrics, and tailored around employee calendar availability.
+
+```mermaid
+graph TD
+    %% Styling and Theme
+    classDef frontend fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc;
+    classDef foundry fill:#0f172a,stroke:#3b82f6,stroke-width:2px,color:#f8fafc;
+    classDef fabric fill:#0f172a,stroke:#f59e0b,stroke-width:2px,color:#f8fafc;
+    classDef m365 fill:#0f172a,stroke:#10b981,stroke-width:2px,color:#f8fafc;
+    classDef github fill:#0f172a,stroke:#a855f7,stroke-width:2px,color:#f8fafc;
+    classDef local fill:#1e293b,stroke:#64748b,stroke-width:1px,color:#cbd5e1;
+
+    %% Nodes
+    subgraph Client ["TrendForge AI Workspace (Next.js)"]
+        UI["Interactive UI: Dialogue Board, SVG Graph, Outlook Grid, Quiz, Audit Table"]:::frontend
+        API["API Layer: /api/agents, /api/roadmap, /api/news"]:::frontend
+    end
+
+    subgraph MSAIFoundry ["Microsoft AI Foundry (Foundry IQ)"]
+        Orchestration["Multi-Agent Orchestrator (5 Specialized Agents)"]:::foundry
+        AzureOpenAI["Azure OpenAI Service (GPT-4o)"]:::foundry
+        GroundedDocs["Knowledge Grounding (Enablement Guide, Learning Reports)"]:::foundry
+    end
+
+    subgraph MSFabric ["Microsoft Fabric (Fabric IQ)"]
+        SemanticEngine["Semantic Model: 15-Cert Catalog, Prerequisites, Benchmarks"]:::fabric
+    end
+
+    subgraph MS365 ["Microsoft 365 Copilot & Graph (Work IQ)"]
+        GraphAPI["Microsoft Graph (Calendar Events, Meeting & Focus Loads)"]:::m365
+        M365Chat["Microsoft 365 Copilot Chat (Status Queries, Push Reminders)"]:::m365
+    end
+
+    subgraph GHCopilot ["GitHub Copilot (Developer Loop)"]
+        IDEContext["IDE Extension & Chat (Task Guidance & Code Verification)"]:::github
+        GHRepos["GitHub Repositories (Code Submissions & Tracking)"]:::github
+    end
+
+    %% Connections / Data Flows
+    UI <--> |HTTP Requests & State Sync| API
+    API <--> |Orchestration & Prompts| Orchestration
+    Orchestration <--> |Model Inference| AzureOpenAI
+    Orchestration --> |Query Context & Citations| GroundedDocs
+    
+    Orchestration <--> |Enforce Rules & Path Dependencies| SemanticEngine
+    
+    Orchestration <--> |Fetch Calendar & Load Signals| GraphAPI
+    GraphAPI <--> |Calendar Grid Synced Blocks| UI
+    
+    M365Chat <--> |Queries Progress & Roadmap Insights| API
+    
+    IDEContext <--> |Reads Personalized Roadmaps / Tasks| API
+    IDEContext --> |Provides In-Editor Exercises & Guidance| GHRepos
+    GHRepos --> |Updates Practice Status & Code Repos| UI
+
+    %% Fallback
+    API -.-> |Fallback if API Keys Missing| LocalSim["High-Fidelity Local Agent & Workload Simulation"]:::local
+```
+
+### 🧠 Integration Details
+
+1. **Microsoft AI Foundry (Foundry IQ)**: 
+   - Orchestrates the **Reasoning Agents** workspace (`/agents`), utilizing five specialized AI agents.
+   - Feeds grounded information to the **Learning Path Curator** and **Assessment** agents, retrieving precise citations from internal documentation (e.g. `Engineering Certification Enablement Guide`) to reduce hallucinations.
+   - Resolves model inferences using **Azure OpenAI Service (GPT-4o)** via the configured endpoints.
+
+2. **Microsoft Fabric (Fabric IQ)**:
+   - Configured with a semantic model representing the complete **15-certification path catalog**, tracking dependencies, and prerequisites.
+   - Guides the **Study Plan Generator** agent to allocate study hours dynamically, ensuring prerequisite sequences are strictly followed.
+
+3. **Microsoft 365 Copilot & Microsoft Graph (Work IQ)**:
+   - Synchronizes learning pacing with employee workloads by analyzing meeting frequency and focus hours via **Microsoft Graph API**.
+   - Feeds work signals into the **Engagement** agent to protect focus hours in the Outlook calendar, while Microsoft 365 Copilot Chat acts as a conversational partner allowing users to query their progress.
+
+4. **GitHub Copilot (Developer Learning Loop)**:
+   - Connects the generated roadmap to the developer's local workspace, where GitHub Copilot provides contextual coding assistance and exercises mapped directly to the active certification track.
+   - Code submissions to GitHub trigger progress updates that feed back to the TrendForge AI dashboard.
+
+---
+
+## 🏆 Agents League Contest Submission
+
+This repository contains our official entry for the **Microsoft Agents League Contest @ AI Skills Fest 2026** under the **Reasoning Agents Track**.
+
+- **📁 Submission Track**: Reasoning Agents (Microsoft Foundry & Microsoft IQ)
+- **🎥 Demo Video Link**: *[Add your YouTube or Vimeo link here!]*
+- **💻 GitHub Repository**: [sabareeshsp7/TrendForge-AI](https://github.com/sabareeshsp7/TrendForge-AI)
+- **👥 Team Members**:
+  - Name: *[Add name]* (Microsoft Learn: *[Add username]*)
+
+---
+
 ## 📁 15-Certification Catalog Configuration (Fabric IQ)
 
 The semantic engine supports the complete hierarchy of 15 Microsoft certifications. Passing a path dynamically recommends the next advanced expert certification:
